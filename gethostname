@@ -1,0 +1,38 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Net::SNMP;
+
+my $conf_file_path="/etc/hostlist.txt";
+open(CFGFH,"<",$conf_file_path) || die ("can't open IP list file");
+my @hostlist = <CFGFH>;
+
+foreach my $host(@hostlist) {
+    chomp $host;
+    &getHostName($host,'public');
+}
+
+
+sub getHostName{
+my ($HostIP,$Community) = @_;    
+my ($SNMPSession,$error) = Net::SNMP->session(hostname => "$HostIP",
+                        community => $Community || 'public',
+                        version => "2c",
+                        retries => "2",
+);
+
+if (!defined $SNMPSession) {
+	printf "ERROR: %s.\n",$error;
+	exit 1;
+}
+my $oid = ".1.3.6.1.2.1.1.5.0";
+my $response = $SNMPSession->get_request($oid);
+my $value = $response->{$oid} || "Unknow";
+#print "$HostIP\t$value\n";
+open(FILE,">>hostname.txt");
+syswrite(FILE,"$HostIP\t$value\n");
+close(FILE);
+#printf "The sysName for $HostIP '%s' is %s.\n",$HostIP,$value;
+$SNMPSession->close();
+}
